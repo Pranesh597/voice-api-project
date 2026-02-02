@@ -1,32 +1,28 @@
-from fastapi import FastAPI, Header, HTTPException
-from pydantic import BaseModel
+from fastapi import FastAPI, Header, HTTPException, Form
 import base64
-import io
 import librosa
+import io
 
 app = FastAPI()
 
 API_KEY = "my_secret_key_123"
 
-
-class AudioRequest(BaseModel):
-    language: str
-    audio_format: str
-    audio_base64: str
-
-
 @app.post("/predict")
-def predict(request: AudioRequest, x_api_key: str = Header(None)):
+def predict(
+    language: str = Form(...),
+    audio_format: str = Form(...),
+    audio_base64: str = Form(...),
+    x_api_key: str = Header(None)
+):
 
     if x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     try:
-        audio_bytes = base64.b64decode(request.audio_base64)
+        audio_bytes = base64.b64decode(audio_base64)
         audio_file = io.BytesIO(audio_bytes)
 
         y, sr = librosa.load(audio_file, sr=16000)
-
         duration = len(y) / sr
 
         if duration > 3:
@@ -41,7 +37,7 @@ def predict(request: AudioRequest, x_api_key: str = Header(None)):
             "confidence": float(confidence)
         }
 
-    except:
+    except Exception as e:
         return {
             "result": "HUMAN",
             "confidence": 0.5
